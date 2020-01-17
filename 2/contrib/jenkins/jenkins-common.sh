@@ -9,16 +9,16 @@ export AUTH_TOKEN=${KUBE_SA_DIR}/token
 export JENKINS_PASSWORD KUBERNETES_SERVICE_HOST KUBERNETES_SERVICE_PORT
 export ITEM_ROOTDIR="\${ITEM_ROOTDIR}" # Preserve this variable Jenkins has in config.xml
 
+# Made to use NSS_WRAPPER as setting /etc/passwd as group writable is subject to CVE
 # Generate passwd file based on current uid
 function generate_passwd_file() {
-  USER_ID=$(id -u)
-  GROUP_ID=$(id -g)
-
-  if [ x"$USER_ID" != x"0" -a x"$USER_ID" != x"997" ]; then
-
-    echo "default:x:${USER_ID}:${GROUP_ID}:Default Application User:${HOME}:/sbin/nologin" >> /etc/passwd
-
-  fi
+  export USER_ID=$(id -u)
+  export GROUP_ID=$(id -g)
+  grep -v -e ^default -e ^$USER_ID /etc/passwd > "$HOME/passwd"
+  echo "default:x:${USER_ID}:${GROUP_ID}:Default Application User:${HOME}:/sbin/nologin" >> "$HOME/passwd"
+  export LD_PRELOAD=libnss_wrapper.so
+  export NSS_WRAPPER_PASSWD=${HOME}/passwd
+  export NSS_WRAPPER_GROUP=/etc/group
 }
 
 # Takes a password and an optional salt value, outputs the hashed password.
